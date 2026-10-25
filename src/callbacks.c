@@ -137,16 +137,14 @@ void on_monitors_changed ( GdkScreen *screen,
   data->aux_backbuffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, data->width, data->height);
 
   /*
-     these depend on the shape surface
+     these depend on the shape surface, move the tools over to the new one,
+     so counters keep counting and undo slots keep pointing to them
   */
-  g_hash_table_remove_all(data->tool_config);
-  /* undo must not restore counts into the freed counters */
-  for (int i = 0; i < GROMIT_MAX_UNDO; i++)
-    data->undo_counter[i] = NULL;
-
-
-  parse_config(data); // also calls paint_context_new() :-(
-
+  GHashTableIter it;
+  gpointer value;
+  g_hash_table_iter_init (&it, data->tool_config);
+  while (g_hash_table_iter_next (&it, NULL, &value))
+    paint_context_set_surface (data, value);
 
   setup_default_tools (data);
 
@@ -247,6 +245,21 @@ void on_clientapp_selection_received (GtkWidget *widget,
 static float line_thickener = 0;
 
 
+/*
+ * stroke width for the given pressure, between minsize and size of the tool,
+ * computed as floating point so that a size below minsize, like size=0 for
+ * no outline, cannot wrap around to a huge width
+ */
+static guint stroke_width (GromitPaintContext *context, gdouble pressure)
+{
+  gdouble width = CLAMP (pressure + line_thickener, 0, 1) *
+                  ((gdouble) context->width - context->minwidth) +
+                  context->minwidth;
+
+  return MIN (width, context->maxwidth);
+}
+
+
 gboolean on_buttonpress (GtkWidget *win, 
 			 GdkEventButton *ev,
 			 gpointer user_data)
@@ -298,13 +311,7 @@ gboolean on_buttonpress (GtkWidget *win,
   snap_undo_state (data, devdata->cur_context);
 
   gdk_event_get_axis ((GdkEvent *) ev, GDK_AXIS_PRESSURE, &pressure);
-  data->maxwidth = (CLAMP (pressure + line_thickener, 0, 1) *
-		    (double) (devdata->cur_context->width -
-			      devdata->cur_context->minwidth) +
-		    devdata->cur_context->minwidth);
-
-  if(data->maxwidth > devdata->cur_context->maxwidth)
-    data->maxwidth = devdata->cur_context->maxwidth;
+  data->maxwidth = stroke_width (devdata->cur_context, pressure);
 
   if (type == GROMIT_FRAME)
     {
@@ -390,13 +397,7 @@ gboolean on_motion (GtkWidget *win,
                                    GDK_AXIS_PRESSURE, &pressure);
               if (pressure > 0)
                 {
-                  data->maxwidth = (CLAMP (pressure + line_thickener, 0, 1) *
-                                    (double) (devdata->cur_context->width -
-                                              devdata->cur_context->minwidth) +
-                                    devdata->cur_context->minwidth);
-
-                  if(data->maxwidth > devdata->cur_context->maxwidth)
-                    data->maxwidth = devdata->cur_context->maxwidth;
+                  data->maxwidth = stroke_width (devdata->cur_context, pressure);
 
                   gdk_device_get_axis(ev->device, coords[i]->axes,
                                       GDK_AXIS_X, &x);
@@ -421,13 +422,7 @@ gboolean on_motion (GtkWidget *win,
 
   if (pressure > 0)
     {
-      data->maxwidth = (CLAMP (pressure + line_thickener, 0, 1) *
-			(double) (devdata->cur_context->width -
-				  devdata->cur_context->minwidth) +
-			devdata->cur_context->minwidth);
-
-      if(data->maxwidth > devdata->cur_context->maxwidth)
-	data->maxwidth = devdata->cur_context->maxwidth;
+      data->maxwidth = stroke_width (devdata->cur_context, pressure);
 
       if(devdata->motion_time > 0)
 	{
@@ -455,10 +450,7 @@ gboolean on_motion (GtkWidget *win,
             }
           else if (type == GROMIT_RECT)
             {
-              draw_line (data, ev->device, devdata->lastx, devdata->lasty, ev->x, devdata->lasty);
-              draw_line (data, ev->device, ev->x, devdata->lasty, ev->x, ev->y);
-              draw_line (data, ev->device, ev->x, ev->y, devdata->lastx, ev->y);
-              draw_line (data, ev->device, devdata->lastx, ev->y, devdata->lastx, devdata->lasty);
+              draw_rect (data, ev->device, devdata->lastx, devdata->lasty, ev->x, ev->y);
             }
           else if (type == GROMIT_CIRCLE)
             {

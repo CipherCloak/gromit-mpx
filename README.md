@@ -220,6 +220,14 @@ A `RECT`-tool draws rectangles.
 
     "red Rectangle" = RECT (color = "red");
 
+Like a `CIRCLE`, a `RECT` gets filled by adding `fillcolor`, while the outline
+keeps using `color` and `size`. A semi-transparent fill in rgba() format
+highlights an area and keeps its content readable. `size=0` leaves out the
+outline (`color="none"` is no valid color and falls back to the default red):
+
+    "yellow Highlight" = RECT (size=0 fillcolor="rgba(255, 255, 0, 0.35)");
+    "red framed Highlight" = RECT (color="red" size=3 fillcolor="rgba(255, 0, 0, 0.25)");
+
 A `CIRCLE`-tool draws circles. You can create both outlined and filled circles.
 
 ![CIRCLE tool](data/tool-circle.webp)
@@ -243,6 +251,10 @@ For semi-transparent fills, use the rgba() format to specify opacity (the alpha 
 ```
 "semi-transparent blue Circle" = CIRCLE (color="black" size=3 fillcolor="rgba(0, 0, 255, 0.5)");
 ```
+
+The canvas opacity (`-o` or the tray menu) applies on top of a fill's alpha, so
+a fill with alpha 0.5 on a canvas with opacity 0.75 ends up 0.375 opaque.
+Semi-transparency needs a compositing manager, see [Potential Problems](#potential-problems).
 
 Tip: If you define outlined and filled circles with the same hotkeys but different modifiers
 (e.g., `ALT` for outlined, `ALT`+`SHIFT` for filled), you can toggle between circle types on
@@ -288,6 +300,29 @@ A `COUNTER`-tool that draws a counter within a frame at the clicked location. In
     "counter" = COUNTER (size=2 color="magenta" fillcolor="rgba(255, 255, 255, 0.5)" fontcolor="red" fontface="Arial" xlength=30 ylength=30 radius=15 start=5 increment=1);
 
 To start a fresh counter clear the screen. Undo and redo restore the counter, too.
+
+With `radius` set to half of `xlength` and `ylength`, the frame becomes a circle,
+giving numbered bubbles for marking the steps of a procedure. The number is
+centered in the frame, and numbers too wide for it, like 100 in a small bubble,
+get a smaller font. So choose the frame size for the numbers you expect:
+
+    "red Bubble" = COUNTER (size=2 color="white" fillcolor="rgba(220, 0, 0, 0.85)" fontcolor="white" xlength=32 ylength=32 radius=16 fontsize=18);
+
+Every click with the tool adds the next bubble at the pointer, where it stays
+like any other drawing. As tools are chosen by device, buttons and modifiers
+only, there is no keyboard shortcut for placing a bubble. To have bubbles at
+hand while drawing, bind them to a modifier combination or an extra mouse
+button, like one of these:
+
+    "default"[SHIFT,CONTROL] = "red Bubble";
+    "default"[Button8] = "red Bubble";
+
+Each line defining or binding a `COUNTER` makes a tool with a count of its own,
+shared by all devices using that line. So with both lines above, `SHIFT`+`CONTROL`
+and `Button8` would count separately, while binding a bubble once via `"default"`
+lets all pointers continue one sequence. Undo hands out the number of an undone
+bubble again, redo takes it back. Clearing the screen as well as restarting
+Gromit-MPX start all counters anew at `start`.
 
 A `STAMP`-tool which allows stamping emojis, any other chars or strings. It works almost the same as `COUNTER` – just with `stamp` (instead of start and increment):
 
@@ -396,7 +431,9 @@ from the root of the source tree.
   thin lines. It makes heavy use of the shape extension, which is
   quite expensive if you paint a complex pattern on screen. Especially
   terminal-programs tend to scroll incredibly slow if something is
-  painted over their window.
+  painted over their window. Also, semi-transparent colors like rgba()
+  fills don't blend with what's below in this mode: parts more than 50%
+  opaque are shown fully opaque, the others not at all.
 
 * If Gromit-MPX under Wayland complains about "cannot open display", make
   sure you have XWayland runnning or its autostart configured. Gromit-MPX

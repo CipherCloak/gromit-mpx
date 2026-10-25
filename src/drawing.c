@@ -154,6 +154,31 @@ void draw_frame (GromitData *data,
   data->painted = 1;
 }
 
+/*
+ * whether a text of the given extents, centered in a frame like draw_frame()
+ * draws it, stays inside the frame's border with a pixel to spare
+ */
+static gboolean text_fits_frame (cairo_text_extents_t *te,
+    gint xlength, gint ylength,
+    gint radius, gint strokewidth)
+{
+  gdouble inset = strokewidth / 2.0 + 1;
+  gdouble half_x = xlength / 2.0 - inset;
+  gdouble half_y = ylength / 2.0 - inset;
+  gdouble corner = MIN (radius, MIN (xlength, ylength) / 2) - inset;
+  gdouble px = te->width / 2;
+  gdouble py = te->height / 2;
+
+  if (px > half_x || py > half_y)
+    return FALSE;
+  if (corner <= 0)
+    return TRUE;
+  /* the text's corner must not reach into the rounded corner of the frame */
+  gdouble dx = px - (half_x - corner);
+  gdouble dy = py - (half_y - corner);
+  return dx <= 0 || dy <= 0 || dx * dx + dy * dy <= corner * corner;
+}
+
 void draw_counter (GromitData *data,
     GdkDevice *dev,
     gint x, gint y,
@@ -183,16 +208,30 @@ void draw_counter (GromitData *data,
       if (count > 9 || count < -9)
         font_size = font_size * 0.9;
 
-      if(data->debug)
-        g_printerr("DEBUG: draw counter with center %d, %d, width %d, height %d, corner radius %d, fill color %s, font_color %s, font_face %s, font_size %u and count %d\n", x, y, xlength, ylength, radius, gdk_rgba_to_string(fill_color), gdk_rgba_to_string(font_color), font_face, font_size, count);
-
       cairo_text_extents_t te;
       gdk_cairo_set_source_rgba(devdata->cur_context->paint_ctx, devdata->cur_context->font_color);
       cairo_select_font_face (devdata->cur_context->paint_ctx, font_face, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
       cairo_set_font_size (devdata->cur_context->paint_ctx, font_size);
       cairo_text_extents (devdata->cur_context->paint_ctx, countstr, &te);
+
+      /* shrink numbers too wide for the frame, a frameless counter has no limit */
+      while (xlength > 0 && ylength > 0 && font_size > 1 &&
+             !text_fits_frame (&te, xlength, ylength, radius, strokewidth))
+        {
+          font_size = font_size * 0.9;
+          cairo_set_font_size (devdata->cur_context->paint_ctx, font_size);
+          cairo_text_extents (devdata->cur_context->paint_ctx, countstr, &te);
+        }
+
+      if(data->debug)
+        g_printerr("DEBUG: draw counter with center %d, %d, width %d, height %d, corner radius %d, fill color %s, font_color %s, font_face %s, font_size %u and count %d\n", x, y, xlength, ylength, radius, gdk_rgba_to_string(fill_color), gdk_rgba_to_string(font_color), font_face, font_size, count);
+
       cairo_move_to (devdata->cur_context->paint_ctx, x + 1 - te.width / 2 - te.x_bearing, y + 1 - te.height / 2 - te.y_bearing);
       cairo_show_text (devdata->cur_context->paint_ctx, countstr);
+
+      /* a frameless counter's text can be larger than its frame */
+      GdkRectangle text_rect = { x - te.width / 2 - 1, y - te.height / 2 - 1, te.width + 4, te.height + 4 };
+      gdk_rectangle_union (&rect, &text_rect, &rect);
 
       data->modified = 1;
 
@@ -247,6 +286,20 @@ void draw_stamp (GromitData *data,
   data->painted = 1;
 }
 
+/*
+ * fills the current path with the tool's fill color, then strokes it
+ */
+static void fill_and_stroke (GromitPaintContext *context)
+{
+  if (context->fill_color)
+    {
+      gdk_cairo_set_source_rgba(context->paint_ctx, context->fill_color);
+      cairo_fill_preserve(context->paint_ctx);
+      gdk_cairo_set_source_rgba(context->paint_ctx, context->paint_color);
+    }
+  cairo_stroke(context->paint_ctx);
+}
+
 void draw_circle (GromitData *data,
                  GdkDevice *dev,
                  gint x, gint y,
@@ -267,18 +320,42 @@ void draw_circle (GromitData *data,
       cairo_set_line_cap(devdata->cur_context->paint_ctx, CAIRO_LINE_CAP_ROUND);
       cairo_set_line_join(devdata->cur_context->paint_ctx, CAIRO_LINE_JOIN_ROUND);
 
-      if (devdata->cur_context->fill_color)
-        {
-          gdk_cairo_set_source_rgba(devdata->cur_context->paint_ctx, devdata->cur_context->fill_color);
-
-          cairo_arc(devdata->cur_context->paint_ctx, x, y, radius, 0, 2 * M_PI);
-          cairo_fill(devdata->cur_context->paint_ctx);
-
-          gdk_cairo_set_source_rgba(devdata->cur_context->paint_ctx, devdata->cur_context->paint_color);
-        }
-
       cairo_arc(devdata->cur_context->paint_ctx, x, y, radius, 0, 2 * M_PI);
-      cairo_stroke(devdata->cur_context->paint_ctx);
+      fill_and_stroke(devdata->cur_context);
+
+      data->modified = 1;
+
+      gdk_window_invalidate_rect(gtk_widget_get_window(data->win), &rect, 0);
+    }
+
+  data->painted = 1;
+}
+
+void draw_rect (GromitData *data,
+                GdkDevice *dev,
+                gint x1, gint y1,
+                gint x2, gint y2)
+{
+  GdkRectangle rect;
+  GromitDeviceData *devdata = g_hash_table_lookup(data->devdatatable, dev);
+
+  /* Invalidation rectangle */
+  rect.x = MIN (x1,x2) - data->maxwidth / 2;
+  rect.y = MIN (y1,y2) - data->maxwidth / 2;
+  rect.width = ABS (x1-x2) + data->maxwidth;
+  rect.height = ABS (y1-y2) + data->maxwidth;
+
+  if(data->debug)
+    g_printerr("DEBUG: draw rect from %d %d to %d %d\n", x1, y1, x2, y2);
+
+  if (devdata->cur_context->paint_ctx)
+    {
+      cairo_set_line_width(devdata->cur_context->paint_ctx, data->maxwidth);
+      cairo_set_line_cap(devdata->cur_context->paint_ctx, CAIRO_LINE_CAP_ROUND);
+      cairo_set_line_join(devdata->cur_context->paint_ctx, CAIRO_LINE_JOIN_ROUND);
+
+      cairo_rectangle(devdata->cur_context->paint_ctx, MIN (x1,x2), MIN (y1,y2), ABS (x1-x2), ABS (y1-y2));
+      fill_and_stroke(devdata->cur_context);
 
       data->modified = 1;
 

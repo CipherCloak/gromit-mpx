@@ -245,6 +245,7 @@ GromitPaintContext *paint_context_new (GromitData *data, GromitPaintType type,
                                        guint font_size,
                                        gchar *stamp,
                                        guint minwidth, guint maxwidth);
+void paint_context_set_surface (GromitData *data, GromitPaintContext *context);
 void paint_context_free (GromitPaintContext *context);
 void setup_default_tools (GromitData *data);
 

@@ -86,26 +86,38 @@ GromitPaintContext *paint_context_new (GromitData *data,
   context->textsize = 14.0;
   context->showlength = 0;
 
+  context->paint_ctx = NULL;
+  paint_context_set_surface (data, context);
+
+  return context;
+}
+
+
+/*
+ * (re)creates the context's cairo context on the current backbuffer
+ */
+void paint_context_set_surface (GromitData *data, GromitPaintContext *context)
+{
+  if (context->paint_ctx)
+    cairo_destroy (context->paint_ctx);
   context->paint_ctx = cairo_create (data->backbuffer);
 
-  gdk_cairo_set_source_rgba(context->paint_ctx, paint_color);
+  gdk_cairo_set_source_rgba(context->paint_ctx, context->paint_color);
   if(!data->composited)
     cairo_set_antialias(context->paint_ctx, CAIRO_ANTIALIAS_NONE);
   else
     cairo_set_antialias(context->paint_ctx, CAIRO_ANTIALIAS_SUBPIXEL);
-  cairo_set_line_width(context->paint_ctx, width);
+  cairo_set_line_width(context->paint_ctx, context->width);
   cairo_set_line_cap(context->paint_ctx, CAIRO_LINE_CAP_ROUND);
   cairo_set_line_join(context->paint_ctx, CAIRO_LINE_JOIN_ROUND);
 
-  if (type == GROMIT_ERASER)
+  if (context->type == GROMIT_ERASER)
     cairo_set_operator(context->paint_ctx, CAIRO_OPERATOR_CLEAR);
   else
-    if (type == GROMIT_RECOLOR)
+    if (context->type == GROMIT_RECOLOR)
       cairo_set_operator(context->paint_ctx, CAIRO_OPERATOR_ATOP);
     else /* GROMIT_PEN */
       cairo_set_operator(context->paint_ctx, CAIRO_OPERATOR_OVER);
-
-  return context;
 }
 
 
@@ -187,7 +199,7 @@ void paint_context_print (gchar *name,
     {
       g_printerr("stamp: %s, ", context->stamp);
     }
-  if (context->type == GROMIT_CIRCLE)
+  if (context->type == GROMIT_CIRCLE || context->type == GROMIT_RECT)
     {
       if (context->fill_color)
         g_printerr(" fillcolor: %s, ", gdk_rgba_to_string(context->fill_color));
