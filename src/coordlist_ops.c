@@ -918,11 +918,36 @@ static gfloat catmull_rom_tj(gfloat ti,
 }
 
 /*
+ * remove points coinciding with their predecessor, as the zero knot
+ * distance between them makes catmull_rom() divide by zero; the first
+ * and last point stay, so a joined path stays joined
+ */
+static void remove_repeated_points(GList *coords) {
+    GList *ptr = coords;
+    while (ptr && ptr->next) {
+        if (coord_distance(ptr, ptr->next) > 0) {
+            ptr = ptr->next;
+            continue;
+        }
+        if (!ptr->next->next) {
+            if (ptr == coords)
+                break;
+            // keep the last point, remove its twin before it
+            ptr = ptr->prev;
+        }
+        g_free(ptr->next->data);
+        coords = g_list_delete_link(coords, ptr->next);
+    }
+}
+
+/*
  * centripetal Catmull-Rom interpolation with 'steps' steps between
  * coordinates.  Based on Python implementation at
  * https://en.wikipedia.org/wiki/Centripetal_Catmull%E2%80%93Rom_spline
  */
 GList *catmull_rom(GList *coords, gint steps, gboolean circular) {
+    remove_repeated_points(coords);
+
     gint segments = g_list_length(coords);
 
     if (segments < 3)  // at least 4 points needed
