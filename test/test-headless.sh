@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Headless tests for filled RECTs and numbered COUNTER bubbles.
+# Headless tests for filled RECTs, numbered COUNTER bubbles and SMOOTH strokes.
 #
 # Runs Gromit-MPX on a display of its own (Xvfb plus the xcompmgr compositing
 # manager) with a temporary config dir and its own D-Bus session, so neither
@@ -14,7 +14,7 @@
 GROMIT_MPX="$1"
 
 [ -x "$GROMIT_MPX" ] || {
-    echo "./test-fill-and-counter.sh <path to gromit-mpx>"
+    echo "./test-headless.sh <path to gromit-mpx>"
     exit 1
 }
 
@@ -125,6 +125,17 @@ with_keys () { # keysyms separated by +, xprobe arguments...
     for k in $keys; do "$XPROBE" keydown "$k"; done
     "$XPROBE" "$@"
     for k in $keys; do "$XPROBE" keyup "$k"; done
+}
+
+stroke () { # x y pairs of a path drawn with button 1
+    "$XPROBE" move "$1" "$2"
+    "$XPROBE" down 1
+    shift 2
+    while [ $# -ge 2 ]; do
+        "$XPROBE" move "$1" "$2"
+        shift 2
+    done
+    "$XPROBE" up 1
 }
 
 pixel_near () { # x, y, r, g, b, tolerance
@@ -258,6 +269,33 @@ start_gromit "$RECT_CONFIG" 0.5 -a
 with_keys Shift_L drag 220 40 370 140
 settle
 check "canvas opacity 0.5 halves the fill's alpha" pixel_near 295 90 64 0 191 3
+stop_gromit
+
+
+#
+# SMOOTH strokes with repeated points
+#
+
+SMOOTH_CONFIG='
+"red Smooth" = SMOOTH (size=5 color="red" simplify=1 snap=10);
+"default" = "red Smooth";
+'
+
+echo "== SMOOTH strokes with repeated points"
+start_gromit "$SMOOTH_CONFIG" 1.0 -a
+
+# starting on a repeated point used to leave two identical points after the
+# simplification, which the smoothing divided by, giving NaN coordinates
+stroke 425 390 425 390 425 398 417 390 417 398 409 390 409 390 409 382 401 390 \
+       393 382 401 382 401 382 409 390 409 390 409 398 409 406 401 414 409 414 \
+       401 414 409 406 409 406 401 406 401 406 401 406 409 406
+# a loop joined by snap, with repeated points at both of its ends
+stroke 200 200 200 200 240 200 260 240 240 280 200 280 180 240 198 202 198 202
+settle
+check "SMOOTH with repeated points passes no invalid rectangles" \
+      test "$(grep -c 'Invalid rectangle' "$LOG")" -eq 0
+check "SMOOTH stroke reaches its starting point" pixel_near 425 392 255 0 0 0
+check "joined SMOOTH loop is drawn" pixel_near 240 200 255 0 0 0
 stop_gromit
 
 

@@ -19,10 +19,10 @@ or
 
 or any other tool.
 
-## Fill and Counter Test
+## Headless Test
 
-`test-fill-and-counter.sh` checks filled `RECT`s and `COUNTER` bubbles without
-any manual intervention. It
+`test-headless.sh` checks filled `RECT`s, `COUNTER` bubbles and `SMOOTH`
+strokes without any manual intervention. It
 
 - starts a display of its own with Xvfb and the xcompmgr compositing manager
 - runs Gromit-MPX with a temporary config dir and its own D-Bus session, so
@@ -31,12 +31,12 @@ any manual intervention. It
 - checks the pixels on screen and the debug output
 - covers config parsing, fill blending, outline-less rectangles, the `RECT`
   and `CIRCLE` outlines, counting, undo, redo, clearing, restarts, numbers
-  with several digits, two simultaneous pointers and, if Xephyr and xrandr
-  are installed, a screen size change
+  with several digits, two simultaneous pointers, `SMOOTH` strokes with
+  repeated points and, if Xephyr and xrandr are installed, a screen size change
 
-Launch with `./test-fill-and-counter.sh <path to gromit-mpx>`, e.g.
+Launch with `./test-headless.sh <path to gromit-mpx>`, e.g.
 
-`./test-fill-and-counter.sh ../build/gromit-mpx`
+`./test-headless.sh ../build/gromit-mpx`
 
 It needs Xvfb, xcompmgr, xinput and the Xlib and XTest headers, on Debian and
 Ubuntu `sudo apt install xvfb xcompmgr xinput libxtst-dev`, optionally plus
