@@ -1,0 +1,76 @@
+## This is a configuration that works for me. I'm sharing it as an example for reference by anyone who wishes to use it. ##
+
+# Uncomment to set Hot key and/or Undo key to a custom value. 
+#HOTKEY = "F5";
+#UNDOKEY = "F6";
+
+
+# LMB      -> Left Mouse Button
+# MMB      -> Middle Mouse Button (Mouse Wheel)
+# RMB      -> Right Mouse Button
+
+
+################################
+#        Left Mouse Button     #
+################################
+
+# LMB -> Straight line
+"straight line" = LINE (size=5 color="red");
+"default" = "straight line";
+#----------------------------
+
+# LMB+SHIFT -> Smooth line
+"smooth line" = SMOOTH (size=5 color="red" simplify=5 snap=10);
+"default"[SHIFT] = "smooth line";
+#----------------------------
+
+# LMB+CONTROL -> Orthogonal line
+"ortho line" = ORTHOGONAL (color="red" size=5 simplify=15 radius=20 minlen=50 snap=40);
+"default"[CONTROL] = "ortho line";
+#----------------------------
+
+
+################################
+#       Right Mouse Button     #
+################################
+
+
+# RMB -> Filled rectangle (highlight)
+"red framed Highlight" = RECT (color="red" size=5 fillcolor="rgba(255, 0, 0, 0.25)");
+"default"[Button3] = "red framed Highlight";
+#----------------------------
+
+# RMB+SHIFT -> Empty rectangle
+"red rectangle" = RECT (color="red" size=5);
+"default"[Button3,SHIFT] = "red rectangle";
+#----------------------------
+
+# RMB+CONTROL -> Eraser
+"Eraser" = ERASER (size=75);
+"default"[Button3,CONTROL] = "Eraser";
+#----------------------------
+
+
+################################
+#      Middle Mouse Button     #
+################################
+
+
+# MMB -> Straight arrow
+"straight arrow" = LINE (size=5 color="red" arrowsize=2);
+"default"[Button2] = "straight arrow";
+#----------------------------
+
+# MMB+SHIFT -> Smooth arrow
+"smooth arrow" = SMOOTH (size=5 color="red" simplify=5 arrowsize=2);
+"default"[Button2,SHIFT] = "smooth arrow";
+#----------------------------
+
+################
+#      ALT     #
+################
+
+
+# ALT+LMB -> Counter
+"red bubble counter" = COUNTER (size=3 color="grey" fillcolor="rgba(220, 0, 0, 0.85)" fontcolor="white" xlength=38 ylength=38 radius=19 fontsize=18);
+"default"[ALT] = "red bubble counter";
