@@ -860,12 +860,13 @@ void douglas_peucker(GList *coords, gfloat epsilon) {
             GList *max_element = first;
             GList *ptr = first->next;
             if (ptr != last) {
-                // d-p fails when start and end pts near-identical -> use dist from start instead
+                // d-p fails when start and end pts near-identical -> use dist from the
+                // nearer of them instead, so a point coinciding with the end is no split point
                 gboolean too_close = coord_distance(first, last) < 10;
                 while (ptr && ptr != last) {
                     gfloat d;
                     if (too_close) {
-                        d = coord_distance(ptr, first);
+                        d = MIN(coord_distance(ptr, first), coord_distance(ptr, last));
                     } else {
                         d = distance_from_line(ptr, first, last);
                     }
