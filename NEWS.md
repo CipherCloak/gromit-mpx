@@ -1,3 +1,9 @@
+# Gromit-MPX 1.9.1 - 2026-10-25
+
+## 🌅 New Features
+
+* Added Filled rectangle.
+
 # Gromit-MPX 1.9.0 - 2026-03-18
 
 ## 🌅 New Features
