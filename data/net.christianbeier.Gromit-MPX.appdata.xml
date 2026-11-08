@@ -62,6 +62,14 @@
   </screenshots>
 
   <releases>
+   <release version="1.9.1" date="2026-10-25">
+      <description>
+	<ul>
+          <li>Added Filled Rectangle</li>
+	</ul>
+      </description>
+    </release>
+
    <release version="1.9.0" date="2026-03-18">
       <description>
 	<ul>
